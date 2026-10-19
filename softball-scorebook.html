@@ -51,33 +51,33 @@ tr.t td{font-weight:900;background:#f4f7f4}
 <main id="m"></main>
 <script>
 /* ===== Firebase設定: ここに貼り付けると全員で共有されます。空のままだとこの端末だけで動作します ===== */
-const FB={apiKey:"",authDomain:"",projectId:"",appId:""};
+const FB={apiKey:"AIzaSyCTBcSkWg_fyo7OpGkG3LxeJ6wrqTYc7Is",authDomain:"cookies-a0bfe.firebaseapp.com",projectId:"cookies-a0bfe",appId:"1:563242205615:web:3f09f92e089c9e391eaf5a"};
 /* ============================================================================== */
-const cloud=!!FB.projectId;let fdb;
+ cloud=!!FB.projectId;let fdb;
 if(cloud){firebase.initializeApp(FB);fdb=firebase.firestore()}
-const LS=localStorage,$=s=>document.querySelector(s);
-const col=(t,c)=>fdb.collection('teams').doc(t).collection(c);
+ LS=localStorage,$=s=>document.querySelector(s);
+ col=(t,c)=>fdb.collection('teams').doc(t).collection(c);
 function sub(t,c,cb){
  if(cloud)return col(t,c).onSnapshot(s=>cb(s.docs.map(d=>({...d.data(),id:d.id}))));
- const k='sb:'+t+':'+c,f=()=>cb(Object.values(JSON.parse(LS[k]||'{}'))),h=e=>{if(e.detail===k)f()};
+  k='sb:'+t+':'+c,f=()=>cb(Object.values(JSON.parse(LS[k]||'{}'))),h=e=>{if(e.detail===k)f()};
  addEventListener('sbchg',h);f();return()=>removeEventListener('sbchg',h)}
 function put(c,o){
  if(cloud)return col(S.team,c).doc(o.id).set(o);
- const k='sb:'+S.team+':'+c,m=JSON.parse(LS[k]||'{}');m[o.id]=o;LS[k]=JSON.stringify(m);dispatchEvent(new CustomEvent('sbchg',{detail:k}))}
+  k='sb:'+S.team+':'+c,m=JSON.parse(LS[k]||'{}');m[o.id]=o;LS[k]=JSON.stringify(m);dispatchEvent(new CustomEvent('sbchg',{detail:k}))}
 function del(c,id){
  if(cloud)return col(S.team,c).doc(id).delete();
- const k='sb:'+S.team+':'+c,m=JSON.parse(LS[k]||'{}');delete m[id];LS[k]=JSON.stringify(m);dispatchEvent(new CustomEvent('sbchg',{detail:k}))}
+  k='sb:'+S.team+':'+c,m=JSON.parse(LS[k]||'{}');delete m[id];LS[k]=JSON.stringify(m);dispatchEvent(new CustomEvent('sbchg',{detail:k}))}
 
-const DIRS=['投','捕','一','二','三','遊','左','中','右'],KINDS=['ゴロ','ライナー','フライ'],KS={ゴロ:'ゴ',ライナー:'直',フライ:'飛'};
-const RES=[['単','安打(単打)'],['二','長打(二塁打)'],['三','長打(三塁打)'],['本','長打(本塁打)'],['失','エラー'],['out','アウト'],['進','アウト(進塁打)'],['犠打','アウト(犠打)'],['犠飛','アウト(犠飛)'],['四','四死球'],['振','三振']];
-const POS=[['','守備'],'投','捕','一','二','三','遊','左','中','右','DH','EP','控'];
-const S={team:LS.team||'',meta:[],players:[],games:[],pas:[],tab:'games',gid:null,sub:'in',inn:1,f:{season:'',tourn:'',type:''}};
+ DIRS=['投','捕','一','二','三','遊','左','中','右'],KINDS=['ゴロ','ライナー','フライ'],KS={ゴロ:'ゴ',ライナー:'直',フライ:'飛'};
+ RES=[['単','安打(単打)'],['二','長打(二塁打)'],['三','長打(三塁打)'],['本','長打(本塁打)'],['失','エラー'],['out','アウト'],['進','アウト(進塁打)'],['犠打','アウト(犠打)'],['犠飛','アウト(犠飛)'],['四','四死球'],['振','三振']];
+ POS=[['','守備'],'投','捕','一','二','三','遊','左','中','右','DH','EP','控'];
+ S={team:LS.team||'',meta:[],players:[],games:[],pas:[],tab:'games',gid:null,sub:'in',inn:1,f:{season:'',tourn:'',type:''}};
 let unsubs=[];
-const uid=()=>Math.random().toString(36).slice(2,9)+Date.now().toString(36).slice(-4);
-const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-const opt=(a,sel)=>a.map(x=>{const[v,l]=Array.isArray(x)?x:[x,x];return`<option value="${esc(v)}"${v==sel?' selected':''}>${esc(l)}</option>`}).join('');
-const sum=a=>(a||[]).reduce((x,y)=>x+(+y||0),0);
-const tname=()=>(S.meta.find(m=>m.id==='team')||{}).name||'';
+ uid=()=>Math.random().toString(36).slice(2,9)+Date.now().toString(36).slice(-4);
+ esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+ opt=(a,sel)=>a.map(x=>{[v,l]=Array.isArray(x)?x:[x,x];return`<option value="${esc(v)}"${v==sel?' selected':''}>${esc(l)}</option>`}).join('');
+ sum=a=>(a||[]).reduce((x,y)=>x+(+y||0),0);
+ tname=()=>(S.meta.find(m=>m.id==='team')||{}).name||'';
 const pn=id=>(S.players.find(p=>p.id===id)||{name:'(削除済)'}).name;
 const fmt=x=>x.toFixed(3).replace(/^0/,'');
 const today=()=>new Date().toISOString().slice(0,10);
