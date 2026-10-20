@@ -349,7 +349,8 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-a]');if(!b
   const[slid,pid]=$('#b').value.split(':'),inn=+$('#inn').value,rbi=+$('#rbi').value,o0=S.pas.find(p=>p.id===S.edit);
   if(inn>maxInn(g)&&!(o0&&+o0.inn===inn))return alert('スコアを入力した回までしか打席を記録できません。先にスコアを入力してください');
   const oc=outsIn(g,inn,o0&&o0.id);
-  if(oc>=3)return alert(inn+'回はすでに3アウトです。この回にはこれ以上打席を記録できません');
+  if(o0){if(oc+(isOut(r)?1:0)>3)return alert(inn+'回のアウトが3つを超えます。結果をアウト以外に変えるか、他の記録を直してください')}
+  else if(oc>=3)return alert(inn+'回はすでに3アウトです。この回にはこれ以上打席を記録できません');
   const us=nrm(g.sc&&g.sc.us),au=au9(g),i=inn-1;
   if(ent(us[i])&&!au[i]&&rbiIn(g,inn,o0&&o0.id)+rbi>us[i])return alert(inn+'回の得点('+us[i]+'点)を超える打点は記録できません');
   const sel=[...document.querySelectorAll('[data-scs]')].map(x=>x.value).filter(Boolean);
