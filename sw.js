@@ -1,7 +1,7 @@
 /* ソフトボール成績帳 Service Worker: オフライン起動用。更新は「通信できるときは常に最新」を優先します */
-const V='sbook-v1';
+const V='sbook-v2';
 const APP=['./','index.html','config.js','manifest.webmanifest','icon-192.png','icon-512.png','apple-touch-icon.png'];
-const CDN=['https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js','https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js'];
+const CDN=['https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js','https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js','https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js'];
 const timeout=(r,ms)=>Promise.race([fetch(r),new Promise((_,j)=>setTimeout(()=>j(new Error('timeout')),ms))]);
 self.addEventListener('install',e=>{
  e.waitUntil(caches.open(V).then(async c=>{
