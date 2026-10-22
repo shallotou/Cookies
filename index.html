@@ -101,7 +101,7 @@ const isOut=r=>['out','進','犠打','犠飛','振'].includes(r);
 const RK=[['得点','得点'],['盗塁','盗塁'],['盗塁死','盗塁死(アウト)'],['走塁死','走塁死(アウト)'],['暴投','進塁(暴投)'],['捕逸','進塁(捕逸)']],RS={得点:'得',盗塁:'盗',盗塁死:'盗死',走塁死:'走死',暴投:'暴',捕逸:'捕'},RLAB={得点:'得点',盗塁:'盗塁',盗塁死:'盗塁死',走塁死:'走塁死',暴投:'進塁(暴投)',捕逸:'進塁(捕逸)'};
 const short=t=>[...String(t||'')].slice(0,3).join('');
 const POS=[['','守備'],...DIRS,'DP','DH',['代','代打'],'控'];
-const S={team:LS.team||'',uid:'',me:null,ready:!cloud,msg:'',meta:[],players:[],games:[],pas:[],runs:[],pitch:[],pedit:false,pre:null,pe:null,scSel:[],events:[],att:[],evForm:null,evOpen:null,showPast:false,appName:'',tab:'sched',gid:null,sub:'in',inn:1,edit:null,f:{season:'',tourn:'',type:''}};
+const S={team:LS.team||'',uid:'',me:null,ready:!cloud,msg:'',lmode:'join',meta:[],players:[],games:[],pas:[],runs:[],pitch:[],pedit:false,pre:null,pe:null,scSel:[],events:[],att:[],evForm:null,evOpen:null,showPast:false,appName:'',tab:'sched',gid:null,sub:'in',inn:1,edit:null,f:{season:'',tourn:'',type:''}};
 let unsubs=[];
 const uid=()=>Math.random().toString(36).slice(2,9)+Date.now().toString(36).slice(-4);
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -168,11 +168,14 @@ function st(ps){const o={pa:ps.length,ab:0,h:0,b:0,hr:0,bb:0,hbp:0,sf:0,rbi:0,so
   if(r==='振'||r==='振逃')o.so++}
  o.avg=o.ab?o.h/o.ab:0;const d=o.ab+o.bb+o.hbp+o.sf;o.obp=d?(o.h+o.bb+o.hbp)/d:0;o.slg=o.ab?o.b/o.ab:0;o.ops=o.obp+o.slg;return o}
 
-function loginV(){return`<div class="card"><h2 style="margin-top:0">チームに参加</h2>${S.msg?`<p class="note" style="color:#a33">${esc(S.msg)}</p>`:''}
-<p class="note">チームID・合言葉・背番号を入力します。この端末では最初の1回だけです(初回はインターネットに接続してください)。${cloud?'':'<br><b>※現在は共有設定前のため、この端末内だけに保存されます。</b>'}</p>
-<div class="row"><input id="tin" placeholder="チームID" autocapitalize="off" value="${esc(LS.team||'')}"></div>
-${cloud?`<div class="row" style="margin-top:8px"><input id="tcode" type="password" placeholder="合言葉" autocapitalize="off"></div><div class="row" style="margin-top:8px"><input id="tno" placeholder="背番号(ない場合は空欄)" inputmode="numeric"></div>`:''}
-<button class="b" style="margin-top:8px;width:100%" data-a="join">参加する</button></div>`}
+function loginV(){const nw=S.lmode==='new'&&cloud;
+ return`<div class="card"><h2 style="margin-top:0">${nw?'チームを新規追加':'チームに参加'}</h2>${S.msg?`<p class="note" style="color:#a33">${esc(S.msg)}</p>`:''}
+<p class="note">${nw?'新しいチームを作ります。チームIDと合言葉は、メンバーに伝えるものです。「チーム作成コード」は、管理者から受け取ったものを入力します。':'チームID・合言葉・背番号を入力します。この端末では最初の1回だけです(初回はインターネットに接続してください)。'}${cloud?'':'<br><b>※現在は共有設定前のため、この端末内だけに保存されます。</b>'}</p>
+${nw?'<div class="row"><input id="tnm2" placeholder="チーム名"></div><div class="row" style="margin-top:8px"><select id="tsp2"><option value="soft">ソフトボール</option><option value="base">野球</option></select></div>':''}
+<div class="row" style="margin-top:${nw?8:0}px"><input id="tin" placeholder="${nw?'チームID(英小文字・数字・ハイフン 3〜30字)':'チームID'}" autocapitalize="off" value="${nw?'':esc(LS.team||'')}"></div>
+${cloud?`<div class="row" style="margin-top:8px"><input id="tcode" type="password" placeholder="${nw?'合言葉(6文字以上・新しく決める)':'合言葉'}" autocapitalize="off"></div>${nw?'<div class="row" style="margin-top:8px"><input id="tcc" type="password" placeholder="チーム作成コード" autocapitalize="off"></div>':''}<div class="row" style="margin-top:8px"><input id="tno" placeholder="${nw?'あなたの背番号(ない場合は空欄)':'背番号(ない場合は空欄)'}" inputmode="numeric"></div>`:''}
+<button class="b" style="margin-top:8px;width:100%" data-a="${nw?'mkteam':'join'}">${nw?'チームを作成して参加':'参加する'}</button>
+${cloud?`<button class="g" style="margin-top:8px;width:100%" data-a="lmode" data-id="${nw?'join':'new'}">${nw?'← 既存のチームに参加する':'チームを新規追加する'}</button>`:''}</div>`}
 
 let lastMf='';
 function setAppName(n){try{const m=document.querySelector('meta[name="apple-mobile-web-app-title"]');if(m)m.setAttribute('content',n)}catch(e){}
@@ -390,6 +393,19 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-a]');if(!b
   const doc={code,no,playerId:'',joinedAt:Date.now()};
   col(v,'members').doc(S.uid).set(doc).then(()=>{LS['mem:'+v+':'+S.uid]='1';S.me=doc;S.msg='';join(v)})
    .catch(e=>{alert(e&&e.code==='permission-denied'?'チームIDまたは合言葉が違います':'接続できません。インターネットの接続を確認してください');draw()})}
+ else if(a==='lmode'){S.lmode=id;S.msg='';draw()}
+ else if(a==='mkteam'){const v=$('#tin').value.trim(),code=($('#tcode').value||'').trim(),cc=($('#tcc').value||'').trim(),nm=($('#tnm2').value||'').trim(),no=($('#tno').value||'').trim(),sp=$('#tsp2').value;
+  if(!nm)return alert('チーム名を入力してください');
+  if(!/^[a-z0-9][a-z0-9-]{2,29}$/.test(v))return alert('チームIDは、半角の英小文字・数字・ハイフンで、3〜30文字にしてください(先頭はハイフン不可)');
+  if(code.length<6)return alert('合言葉は6文字以上にしてください');
+  if(!cc)return alert('チーム作成コードを入力してください');
+  if(!S.uid)return alert('ログインの準備中です。数秒たってからもう一度押してください');
+  const me={code,no,playerId:'',joinedAt:Date.now()};
+  fdb.collection('teams').doc(v).set({joinCode:code,createCode:cc,createdAt:Date.now()})
+   .then(()=>col(v,'members').doc(S.uid).set(me))
+   .then(()=>{LS['mem:'+v+':'+S.uid]='1';S.me=me;return col(v,'meta').doc('team').set({id:'team',name:nm,sport:sp})})
+   .then(()=>{S.msg='';S.lmode='join';join(v)})
+   .catch(e=>{alert(e&&e.code==='permission-denied'?'作成できませんでした。そのチームIDはすでに使われているか、チーム作成コードが違います':'接続できません。インターネットの接続を確認してください');draw()})}
  else if(a==='chteam'){unsubs.forEach(u=>u());S.team='';S.me=null;LS.team='';S.tab='sched';S.gid=null;draw()}
  else if(a==='savet'){put('meta',{id:'team',name:$('#tnm').value.trim(),sport:$('#tsp').value})}
  else if(a==='tab'){S.tab=id;S.gid=null;draw()}
