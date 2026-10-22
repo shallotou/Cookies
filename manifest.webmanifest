@@ -1,6 +1,6 @@
 {
-  "name": "ソフトボール成績帳",
-  "short_name": "成績帳",
+  "name": "やきう・ソフトボール成績表",
+  "short_name": "成績表",
   "description": "ソフトボールの打席・投手成績を記録するアプリ",
   "lang": "ja",
   "start_url": "./",

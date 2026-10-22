@@ -6,9 +6,9 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="成績帳">
+<meta name="apple-mobile-web-app-title" content="成績表">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>ソフトボール成績帳</title>
+<title>やきう・ソフトボール成績表</title>
 <link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;700;900&display=swap" rel="stylesheet">
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
@@ -353,7 +353,7 @@ function statsBat(){
 
 function statsV(){return statsBat()+pitV()}
 function draw(){
- $('#ttl').textContent=S.team?(tname()||S.team):'ソフトボール成績帳';document.title=$('#ttl').textContent;
+ $('#ttl').textContent=S.team?(tname()||S.team):'やきう・ソフトボール成績表';document.title=$('#ttl').textContent;
  if(S.team&&S.appName!==$('#ttl').textContent){S.appName=$('#ttl').textContent;setAppName(S.appName)}$('#nv').hidden=!S.team;$('#gear').hidden=!S.team;
  if(!S.ready){$('#m').innerHTML='<div class="empty">読み込み中…</div>';return}
  document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.id===S.tab));
