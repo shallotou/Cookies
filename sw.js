@@ -1,5 +1,5 @@
 /* ソフトボール成績帳 Service Worker: オフライン起動用。更新は「通信できるときは常に最新」を優先します */
-const V='sbook-v2';
+const V='sbook-v3';
 const APP=['./','index.html','config.js','manifest.webmanifest','icon-192.png','icon-512.png','apple-touch-icon.png'];
 const CDN=['https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js','https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js','https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js'];
 const timeout=(r,ms)=>Promise.race([fetch(r),new Promise((_,j)=>setTimeout(()=>j(new Error('timeout')),ms))]);
@@ -13,6 +13,7 @@ self.addEventListener('activate',e=>{
 self.addEventListener('fetch',e=>{
  const r=e.request;if(r.method!=='GET')return;
  const u=new URL(r.url);
+ if(u.searchParams.has('_'))return; /* 更新確認用の通信は、キャッシュに触れない */
  if(u.origin===location.origin){
   /* 自サイト: 通信を優先(電波が弱いときは3秒でキャッシュに切替) */
   e.respondWith(timeout(r,3000).then(res=>{if(res.ok){const cp=res.clone();caches.open(V).then(c=>c.put(r,cp))}return res})
