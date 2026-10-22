@@ -61,9 +61,15 @@ tr.t td{font-weight:900;background:#f4f7f4}
 .chip.ed{outline:1px dashed #6a8;cursor:pointer}
 .chip.add{background:#fff;border:1px solid #6a8;cursor:pointer}
 #off{background:#b55a00;color:#fff;font-size:13px;padding:6px 12px;text-align:center}
+.ar{display:flex;gap:6px;align-items:center;margin-top:8px}
+.ab{flex:1;min-width:0;padding:9px 0;border:1px solid var(--line);background:#fff;border-radius:8px;font:700 14px inherit;font-family:inherit;color:var(--ink)}
+.ab.sm{flex:0 0 44px;padding:6px 0}
+.ab.on.y{background:#2e7d32;color:#fff;border-color:#2e7d32}
+.ab.on.m{background:#e09b00;color:#fff;border-color:#e09b00}
+.ab.on.n{background:#c62828;color:#fff;border-color:#c62828}
 </style></head><body>
 <div id="top"><header><b id="ttl"></b><button id="gear" data-a="tab" data-id="settings" aria-label="設定" hidden>⚙</button></header>
-<nav id="nv" hidden><button data-a="tab" data-id="games">試合</button><button data-a="tab" data-id="stats">集計</button></nav></div>
+<nav id="nv" hidden><button data-a="tab" data-id="sched">予定</button><button data-a="tab" data-id="games">試合</button><button data-a="tab" data-id="stats">集計</button></nav></div>
 <div id="off" hidden>オフラインです。入力は端末に保存され、電波が戻ると自動で同期されます</div>
 <main id="m"></main>
 <script src="config.js"></script>
@@ -95,7 +101,7 @@ const isOut=r=>['out','進','犠打','犠飛','振'].includes(r);
 const RK=[['得点','得点'],['盗塁','盗塁'],['盗塁死','盗塁死(アウト)'],['走塁死','走塁死(アウト)'],['暴投','進塁(暴投)'],['捕逸','進塁(捕逸)']],RS={得点:'得',盗塁:'盗',盗塁死:'盗死',走塁死:'走死',暴投:'暴',捕逸:'捕'},RLAB={得点:'得点',盗塁:'盗塁',盗塁死:'盗塁死',走塁死:'走塁死',暴投:'進塁(暴投)',捕逸:'進塁(捕逸)'};
 const short=t=>[...String(t||'')].slice(0,3).join('');
 const POS=[['','守備'],...DIRS,'DP',['代','代打'],'控'];
-const S={team:LS.team||'',uid:'',me:null,ready:!cloud,msg:'',meta:[],players:[],games:[],pas:[],runs:[],pitch:[],pedit:false,pre:null,pe:null,scSel:[],tab:'games',gid:null,sub:'in',inn:1,edit:null,f:{season:'',tourn:'',type:''}};
+const S={team:LS.team||'',uid:'',me:null,ready:!cloud,msg:'',meta:[],players:[],games:[],pas:[],runs:[],pitch:[],pedit:false,pre:null,pe:null,scSel:[],events:[],att:[],evForm:null,evOpen:null,showPast:false,appName:'',tab:'sched',gid:null,sub:'in',inn:1,edit:null,f:{season:'',tourn:'',type:''}};
 let unsubs=[];
 const uid=()=>Math.random().toString(36).slice(2,9)+Date.now().toString(36).slice(-4);
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -104,9 +110,9 @@ const sum=a=>(a||[]).reduce((x,y)=>x+(+y||0),0);
 const tname=()=>(S.meta.find(m=>m.id==='team')||{}).name||'';
 const pn=id=>(S.players.find(p=>p.id===id)||{name:'(削除済)'}).name;
 const fmt=x=>x.toFixed(3).replace(/^0/,'');
-const today=()=>new Date().toISOString().slice(0,10);
-function join(t){unsubs.forEach(u=>u());S.team=t;LS.team=t;S.meta=[];S.players=[];S.games=[];S.pas=[];S.runs=[];S.pitch=[];
- unsubs=['meta','players','games','pas','runs','pitch'].map(c=>sub(t,c,a=>{S[c]=a;if(c==='players')linkMe();draw()}));draw()}
+const today=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
+function join(t){unsubs.forEach(u=>u());S.team=t;LS.team=t;S.meta=[];S.players=[];S.games=[];S.pas=[];S.runs=[];S.pitch=[];S.events=[];S.att=[];
+ unsubs=['meta','players','games','pas','runs','pitch','events','att'].map(c=>sub(t,c,a=>{S[c]=a;if(c==='players')linkMe();draw()}));draw()}
 function linkMe(){if(!cloud||!S.me||!S.me.no||S.me.playerId||!S.uid)return;const p=S.players.find(x=>String(x.no)===String(S.me.no));if(!p)return;
  S.me={...S.me,playerId:p.id};col(S.team,'members').doc(S.uid).set(S.me).catch(()=>{})}
 
@@ -166,6 +172,41 @@ function loginV(){return`<div class="card"><h2 style="margin-top:0">チームに
 <div class="row"><input id="tin" placeholder="チームID" autocapitalize="off" value="${esc(LS.team||'')}"></div>
 ${cloud?`<div class="row" style="margin-top:8px"><input id="tcode" type="password" placeholder="合言葉" autocapitalize="off"></div><div class="row" style="margin-top:8px"><input id="tno" placeholder="背番号(ない場合は空欄)" inputmode="numeric"></div>`:''}
 <button class="b" style="margin-top:8px;width:100%" data-a="join">参加する</button></div>`}
+
+let lastMf='';
+function setAppName(n){try{const m=document.querySelector('meta[name="apple-mobile-web-app-title"]');if(m)m.setAttribute('content',n)}catch(e){}
+ try{const l=document.querySelector('link[rel="manifest"]');if(!l||typeof Blob==='undefined'||!window.URL||!URL.createObjectURL)return;const b=new URL('./',location.href).href;
+  const mf={name:n,short_name:n.slice(0,12),lang:'ja',start_url:b,scope:b,display:'standalone',orientation:'portrait',background_color:'#eef2ee',theme_color:'#1b5e3b',icons:[{src:b+'icon-192.png',sizes:'192x192',type:'image/png',purpose:'any maskable'},{src:b+'icon-512.png',sizes:'512x512',type:'image/png',purpose:'any maskable'}]};
+  const u=URL.createObjectURL(new Blob([JSON.stringify(mf)],{type:'application/manifest+json'}));l.href=u;if(lastMf)URL.revokeObjectURL(lastMf);lastMf=u}catch(e){}}
+
+/* ---- 予定・出欠 ---- */
+const EVT=['公式戦','練習試合','練習','その他'],AV=[['○','y','参加'],['△','m','未定'],['×','n','不参加']];
+const dow=d=>{const x=new Date(d+'T00:00:00');return isNaN(x)?'':'日月火水木金土'[x.getDay()]};
+const dfmt=d=>{const m=String(d||'').match(/^(\d{4})-(\d{2})-(\d{2})$/);return m?(+m[2])+'/'+(+m[3])+'('+dow(d)+')':String(d||'')};
+const myPid=()=>(S.me&&S.me.playerId)||'';
+const evCmp=(a,b)=>(a.date||'').localeCompare(b.date||'')||(a.time||'').localeCompare(b.time||'');
+function evFormV(){const E=S.events.find(x=>x.id===S.evForm)||null,v=k=>esc(E?E[k]||'':'');
+ return`<div class="card"><h2 style="margin-top:0">${E?'予定を修正':'予定を追加'}</h2><div class="row"><input type="date" id="ed" value="${E?esc(E.date):today()}"><input type="time" id="et" value="${v('time')}"></div>
+<div class="row" style="margin-top:8px"><select id="ety">${opt(EVT,E?E.type:'練習試合')}</select><input id="eti" placeholder="対戦相手・内容" value="${v('title')}"></div>
+<div class="row" style="margin-top:8px"><input id="epl" placeholder="場所" value="${v('place')}"><input id="eto" placeholder="大会名(任意)" value="${v('tourn')}"></div>
+<div class="row" style="margin-top:8px"><input id="eno" placeholder="メモ(集合場所・持ち物など)" value="${v('note')}"></div>
+<div class="row" style="margin-top:8px"><button class="b" data-a="evsave">保存</button><button class="g" data-a="evcancel">キャンセル</button></div></div>`}
+function evCard(e){const am={};S.att.filter(a=>a.eid===e.id).forEach(a=>{am[a.pid]=a});const pl=[...S.players].sort((a,b)=>(+a.no||999)-(+b.no||999)),my=myPid();
+ const cnt={'○':0,'△':0,'×':0};pl.forEach(p=>{const a=am[p.id];if(a&&cnt[a.v]!=null)cnt[a.v]++});const un=pl.length-cnt['○']-cnt['△']-cnt['×'];
+ const open=S.evOpen===e.id,mine=my&&am[my]?am[my].v:'',isG=e.type==='公式戦'||e.type==='練習試合';
+ let h=`<div class="card"><div class="row" style="flex-wrap:nowrap"><b style="flex:1;min-width:0">${esc(dfmt(e.date))}${e.time?' '+esc(e.time):''}</b><span class="chip${e.type==='公式戦'?' h':''}" style="flex:0 0 auto;min-width:0">${esc(e.type||'')}</span></div>
+<div style="margin:4px 0"><b>${esc(e.title||'(内容未設定)')}</b>${e.tourn?` <small class="mute">${esc(e.tourn)}</small>`:''}</div>${e.place?`<div class="note">場所: ${esc(e.place)}</div>`:''}${e.note?`<div class="note">${esc(e.note)}</div>`:''}`;
+ h+=my?`<div class="ar"><span style="flex:0 0 auto">自分</span>${AV.map(([s,c,l])=>`<button class="ab ${c}${mine===s?' on':''}" data-a="att" data-id="${e.id}:${my}:${s}">${s} ${l}</button>`).join('')}</div>`:`<div class="note" style="margin-top:8px">背番号が選手マスタにないため、自分の出欠は「みんなの出欠」から入力してください。</div>`;
+ h+=`<div class="note" style="margin-top:6px">○ ${cnt['○']}　△ ${cnt['△']}　× ${cnt['×']}　未回答 ${un}</div>
+<div class="row" style="margin-top:6px"><button class="g" data-a="evopen" data-id="${e.id}">${open?'一覧を閉じる':'みんなの出欠'}</button><button class="g" data-a="evedit" data-id="${e.id}">✎ 修正</button>${isG?`<button class="g" data-a="evgame" data-id="${e.id}">${e.gid&&S.games.some(g=>g.id===e.gid)?'試合記録を開く':'試合を作成'}</button>`:''}<button class="x" data-a="evdel" data-id="${e.id}" style="flex:0 0 auto;min-width:0">✕</button></div>`;
+ if(open)h+=`<div style="margin-top:8px">`+(pl.length?pl.map(p=>{const a=am[p.id];return`<div class="pa"><span>${esc(p.no?p.no+' ':'')}${esc(p.name)}${p.id===my?' <small class="mute">(自分)</small>':''}${a&&a.by&&a.by!==p.id?` <small class="mute">(${esc(pn(a.by))}が入力)</small>`:''}</span><span class="ar" style="margin:0">${AV.map(([s,c])=>`<button class="ab sm ${c}${a&&a.v===s?' on':''}" data-a="att" data-id="${e.id}:${p.id}:${s}">${s}</button>`).join('')}</span></div>`}).join(''):'<div class="mute">選手マスタに選手が登録されていません。</div>')+`<p class="note" style="margin:6px 0 0">他の人の出欠も入力できます(「○○が入力」と記録されます)。同じボタンをもう一度押すと取り消せます。</p></div>`;
+ return h+`</div>`}
+function schedV(){const td=today(),up=S.events.filter(e=>(e.date||'')>=td).sort(evCmp),past=S.events.filter(e=>(e.date||'')<td).sort((a,b)=>evCmp(b,a));
+ let h=`<div class="row" style="margin-bottom:8px"><button class="b" data-a="evnew" style="flex:0 0 auto">＋ 予定を追加</button></div>`;
+ if(S.evForm)h+=evFormV();
+ h+=up.length?up.map(evCard).join(''):'<div class="empty">今後の予定はありません。「予定を追加」から登録してください。</div>';
+ if(past.length)h+=`<button class="g" data-a="evpast" style="width:100%;margin-top:6px">${S.showPast?'過去の予定を隠す':'過去の予定を見る('+past.length+'件)'}</button>`+(S.showPast?`<div style="margin-top:8px">${past.slice(0,20).map(evCard).join('')}</div>`:'');
+ return h}
 
 function gamesV(){
  const gs=[...S.games].sort((a,b)=>(b.date||'').localeCompare(a.date||''));
@@ -310,12 +351,13 @@ function statsBat(){
 
 function statsV(){return statsBat()+pitV()}
 function draw(){
- $('#ttl').textContent=S.team?(tname()||'チーム')+'成績':'ソフトボール成績';document.title=$('#ttl').textContent;$('#nv').hidden=!S.team;$('#gear').hidden=!S.team;
+ $('#ttl').textContent=S.team?(tname()||S.team):'ソフトボール成績帳';document.title=$('#ttl').textContent;
+ if(S.team&&S.appName!==$('#ttl').textContent){S.appName=$('#ttl').textContent;setAppName(S.appName)}$('#nv').hidden=!S.team;$('#gear').hidden=!S.team;
  if(!S.ready){$('#m').innerHTML='<div class="empty">読み込み中…</div>';return}
  document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.id===S.tab));
  if(!S.team){$('#m').innerHTML=loginV();return}
  const ae=document.activeElement;if(ae&&ae.tagName==='INPUT'&&ae.dataset.sc===undefined&&ae.value)return;
- $('#m').innerHTML=S.tab==='games'?(S.gid?gameV():gamesV()):S.tab==='settings'?settingsV():statsV();
+ $('#m').innerHTML=S.tab==='sched'?schedV():S.tab==='games'?(S.gid?gameV():gamesV()):S.tab==='settings'?settingsV():statsV();
  tg()}
 function updRbi(){const g=S.games.find(x=>x.id===S.gid),sl=$('#rbi'),ii=$('#inn');if(!g||!sl||!ii)return;
  const inn=+ii.value,us=nrm(g.sc&&g.sc.us),au=au9(g),i=inn-1;let mx=4,note;
@@ -346,7 +388,7 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-a]');if(!b
   const doc={code,no,playerId:'',joinedAt:Date.now()};
   col(v,'members').doc(S.uid).set(doc).then(()=>{LS['mem:'+v+':'+S.uid]='1';S.me=doc;S.msg='';join(v)})
    .catch(e=>{alert(e&&e.code==='permission-denied'?'チームIDまたは合言葉が違います':'接続できません。インターネットの接続を確認してください');draw()})}
- else if(a==='chteam'){unsubs.forEach(u=>u());S.team='';S.me=null;LS.team='';S.tab='games';S.gid=null;draw()}
+ else if(a==='chteam'){unsubs.forEach(u=>u());S.team='';S.me=null;LS.team='';S.tab='sched';S.gid=null;draw()}
  else if(a==='savet'){put('meta',{id:'team',name:$('#tnm').value.trim()})}
  else if(a==='tab'){S.tab=id;S.gid=null;draw()}
  else if(a==='newgame'){const d=$('#gd').value||today(),o={id:uid(),date:d,opp:$('#go').value.trim(),type:$('#gt').value,tourn:$('#gn').value.trim(),season:d.slice(0,4),slots:[],sc:{us:Array(9).fill(null),them:Array(9).fill(null)},auto:Array(9).fill(false),autoT:Array(9).fill(false),dec:{}};put('games',o);S.gid=o.id;S.sub='in';draw()}
@@ -387,6 +429,21 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-a]');if(!b
   const after=S.pas.filter(p=>p.gid===g.id&&p.id!==pa.id).concat([pa]);
   const nr=sel.map((p,k)=>({id:uid(),gid:g.id,pid:p,sl:'',inn,k:'得点',pa:pa.id,t:pa.t+(k+1)/1000})),gr=others.concat(nr);let g2=autoApply(g,inn,after,gr);if(o0&&+o0.inn!==inn)g2=autoApply(g2,o0.inn,after,gr);
   oldR.forEach(x=>del('runs',x.id));nr.forEach(x=>put('runs',x));put('games',g2);put('pas',pa);S.edit=null;S.pre=null;S.scSel=[];draw()}
+ else if(a==='evnew'){S.evForm='new';draw()}
+ else if(a==='evedit'){S.evForm=id;draw()}
+ else if(a==='evcancel'){S.evForm=null;draw()}
+ else if(a==='evopen'){S.evOpen=S.evOpen===id?null:id;draw()}
+ else if(a==='evpast'){S.showPast=!S.showPast;draw()}
+ else if(a==='evsave'){const d=$('#ed').value;if(!d)return alert('日付を入力してください');
+  const E=S.events.find(x=>x.id===S.evForm),e={id:E?E.id:uid(),date:d,time:$('#et').value||'',type:$('#ety').value,title:$('#eti').value.trim(),place:$('#epl').value.trim(),tourn:$('#eto').value.trim(),note:$('#eno').value.trim(),gid:E?(E.gid||''):'',t:E?E.t:Date.now()};
+  put('events',e);S.evForm=null;draw()}
+ else if(a==='evdel'){const e=S.events.find(x=>x.id===id);if(!e||!confirm('この予定と出欠の回答を削除しますか?'))return;S.att.filter(x=>x.eid===id).forEach(x=>del('att',x.id));del('events',id)}
+ else if(a==='att'){const[eid,pid,v]=id.split(':'),aid=eid+'_'+pid,cur=S.att.find(x=>x.id===aid);
+  if(cur&&cur.v===v)del('att',aid);else put('att',{id:aid,eid,pid,v,by:myPid(),t:Date.now()})}
+ else if(a==='evgame'){const e=S.events.find(x=>x.id===id);if(!e)return;
+  if(e.gid&&S.games.some(x=>x.id===e.gid)){S.tab='games';S.gid=e.gid;S.sub='in';draw();return}
+  const d=e.date||today(),o={id:uid(),date:d,opp:e.title||'',type:e.type==='公式戦'?'official':'practice',tourn:e.tourn||'',season:d.slice(0,4),slots:[],sc:{us:Array(9).fill(null),them:Array(9).fill(null)},auto:Array(9).fill(false),autoT:Array(9).fill(false),dec:{},eid:e.id};
+  put('games',o);put('events',{...e,gid:o.id});S.tab='games';S.gid=o.id;S.sub='in';draw()}
  else if(a==='pedit'){S.pedit=!S.pedit;draw()}
  else if(a==='addfor'){S.pre=id;S.edit=null;S.scSel=[];S.sub='in';draw();const bb=$('#b');if(bb)bb.scrollIntoView({behavior:'smooth',block:'center'})}
  else if(a==='editpit'){S.pe=id;S.sub='pit';draw();window.scrollTo(0,0)}
