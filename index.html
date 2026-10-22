@@ -66,10 +66,11 @@ tr.t td{font-weight:900;background:#f4f7f4}
 .ab.sm{flex:0 0 44px;padding:6px 0}
 .ab.on.y{background:#2e7d32;color:#fff;border-color:#2e7d32}
 .ab.on.m{background:#e09b00;color:#fff;border-color:#e09b00}
+.card summary{font-weight:700;cursor:pointer}
 .ab.on.n{background:#c62828;color:#fff;border-color:#c62828}
 </style></head><body>
-<div id="top"><header><b id="ttl"></b><button id="gear" data-a="tab" data-id="settings" aria-label="設定" hidden>⚙</button></header>
-<nav id="nv" hidden><button data-a="tab" data-id="sched">予定</button><button data-a="tab" data-id="games">試合</button><button data-a="tab" data-id="stats">集計</button></nav></div>
+<div id="top"><header><b id="ttl"></b></header>
+<nav id="nv" hidden><button data-a="tab" data-id="sched">予定</button><button data-a="tab" data-id="games">試合</button><button data-a="tab" data-id="stats">集計</button><button data-a="tab" data-id="settings">⚙ 設定</button></nav></div>
 <div id="off" hidden>オフラインです。入力は端末に保存され、電波が戻ると自動で同期されます</div>
 <main id="m"></main>
 <script src="config.js"></script>
@@ -101,7 +102,7 @@ const isOut=r=>['out','進','犠打','犠飛','振'].includes(r);
 const RK=[['得点','得点'],['盗塁','盗塁'],['盗塁死','盗塁死(アウト)'],['走塁死','走塁死(アウト)'],['暴投','進塁(暴投)'],['捕逸','進塁(捕逸)']],RS={得点:'得',盗塁:'盗',盗塁死:'盗死',走塁死:'走死',暴投:'暴',捕逸:'捕'},RLAB={得点:'得点',盗塁:'盗塁',盗塁死:'盗塁死',走塁死:'走塁死',暴投:'進塁(暴投)',捕逸:'進塁(捕逸)'};
 const short=t=>[...String(t||'')].slice(0,3).join('');
 const POS=[['','守備'],...DIRS,'DP','DH',['代','代打'],'控'];
-const S={team:LS.team||'',uid:'',me:null,ready:!cloud,msg:'',lmode:'join',meta:[],players:[],games:[],pas:[],runs:[],pitch:[],pedit:false,pre:null,pe:null,scSel:[],events:[],att:[],evForm:null,evOpen:null,showPast:false,appName:'',tab:'sched',gid:null,sub:'in',inn:1,edit:null,f:{season:'',tourn:'',type:''}};
+const S={team:LS.team||'',uid:'',me:null,ready:!cloud,msg:'',lmode:'join',guideOpen:false,meta:[],players:[],games:[],pas:[],runs:[],pitch:[],pedit:false,pre:null,pe:null,scSel:[],events:[],att:[],evForm:null,evOpen:null,showPast:false,appName:'',tab:'sched',gid:null,sub:'in',inn:1,edit:null,f:{season:'',tourn:'',type:''}};
 let unsubs=[];
 const uid=()=>Math.random().toString(36).slice(2,9)+Date.now().toString(36).slice(-4);
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -211,7 +212,7 @@ function schedV(){const td=today(),up=S.events.filter(e=>(e.date||'')>=td).sort(
  if(S.evForm)h+=evFormV();
  h+=up.length?up.map(evCard).join(''):'<div class="empty">今後の予定はありません。「予定を追加」から登録してください。</div>';
  if(past.length)h+=`<button class="g" data-a="evpast" style="width:100%;margin-top:6px">${S.showPast?'過去の予定を隠す':'過去の予定を見る('+past.length+'件)'}</button>`+(S.showPast?`<div style="margin-top:8px">${past.slice(0,20).map(evCard).join('')}</div>`:'');
- return h}
+ return h+`<div class="row" style="margin-top:14px"><button class="g" data-a="chteam">チームを切り替える</button></div><div style="margin-top:8px">`+guideBox()+`</div>`}
 
 function gamesV(){
  const gs=[...S.games].sort((a,b)=>(b.date||'').localeCompare(a.date||''));
@@ -221,7 +222,14 @@ function gamesV(){
 <button class="b" style="margin-top:8px;width:100%" data-a="newgame">試合を作成</button></div>
 <h2>試合一覧</h2>`+(gs.length?gs.map(g=>`<div class="card gm" data-a="open" data-id="${g.id}"><div><b>${esc(g.date)} vs ${esc(g.opp||'相手')}</b><br><small>${g.type==='official'?'公式戦':'練習試合'}${g.tourn?' / '+esc(g.tourn):''}</small></div><div class="sc">${sum(g.sc&&g.sc.us)}-${sum(g.sc&&g.sc.them)}</div></div>`).join(''):'<div class="empty">試合がまだありません。上のフォームから作成してください。</div>')}
 
-function settingsV(){return`<h2 style="margin-top:0">チームマスタ</h2><div class="card"><div class="row"><input id="tnm" placeholder="チーム名" value="${esc(tname())}"></div><div class="row" style="margin-top:8px"><select id="tsp">${opt([['soft','ソフトボール(防御率は7回換算)'],['base','野球(防御率は9回換算)']],eraN()===9?'base':'soft')}</select><button class="b" data-a="savet" style="flex:0 0 auto">保存</button></div><p class="note" style="margin:8px 0 0">チームID: <b>${esc(S.team)}</b>(メンバーに共有するのはこのIDと合言葉です)</p>${cloud&&S.me?`<p class="note" style="margin:4px 0 0">この端末の本人: ${S.me.playerId?esc(pn(S.me.playerId))+'(背番号 '+esc(S.me.no)+')':'未紐づけ(背番号 '+esc(S.me.no||'なし')+' が選手マスタにありません)'}</p>`:''}</div>`+playersV()+`<button class="g" style="width:100%;margin-top:14px" data-a="chteam">チームIDを切り替える</button>`}
+function guideBox(){return`<details class="card" id="gd"${S.guideOpen?' open':''}><summary>📲 ホーム画面への追加方法(アプリのように使えます)</summary><div class="note" style="margin-top:8px;line-height:1.7">
+<b>iPhone(Safari)</b><ol style="margin:4px 0 8px;padding-left:20px"><li>Safariでこのページを開きます。</li><li>画面下の共有ボタン(四角から上向きの矢印のマーク)を押します。</li><li>「ホーム画面に追加」を選び、「追加」を押します。</li></ol>
+<b>Android(Chrome)</b><ol style="margin:4px 0 8px;padding-left:20px"><li>右上の「︙」を押します。</li><li>「ホーム画面に追加」(または「アプリをインストール」)を選びます。</li></ol>
+<b>パソコン</b><div style="margin:4px 0 8px">Ctrl + D(Macは ⌘ + D)で、ブックマークに追加できます。</div>
+<b>ポイント</b><ul style="margin:4px 0 0;padding-left:20px"><li>ログインしてから追加すると、ホーム画面の名前が、チーム名になります。</li><li>ホーム画面のアイコンから最初に開いたときは、もう一度、チームID・合言葉・背番号の入力が必要です(1回だけ)。</li></ul></div></details>`}
+function settingsV(){return`<h2 style="margin-top:0">選手・チーム設定</h2>
+<div class="card"><div class="row" style="flex-wrap:nowrap"><div style="flex:1;min-width:0"><b>${esc(tname()||S.team)}</b><div class="note">チームID: ${esc(S.team)}(メンバーに共有するのは、このIDと合言葉です)</div></div><button class="g" data-a="chteam" style="flex:0 0 auto;min-width:0">チームを切り替える</button></div>${cloud&&S.me?`<p class="note" style="margin:8px 0 0">この端末の本人: ${S.me.playerId?esc(pn(S.me.playerId))+'(背番号 '+esc(S.me.no)+')':'未紐づけ(背番号 '+esc(S.me.no||'なし')+' が選手マスタにありません)'}</p>`:''}</div>
+<h2>チームマスタ</h2><div class="card"><div class="row"><input id="tnm" placeholder="チーム名" value="${esc(tname())}"></div><div class="row" style="margin-top:8px"><select id="tsp">${opt([['soft','ソフトボール(防御率は7回換算)'],['base','野球(防御率は9回換算)']],eraN()===9?'base':'soft')}</select><button class="b" data-a="savet" style="flex:0 0 auto">保存</button></div></div>`+playersV()+`<div style="margin-top:14px">`+guideBox()+`</div>`}
 function playersV(){
  return`<h2>選手マスタ</h2><div class="card"><div class="row"><input id="pnm" placeholder="名前"><input id="pno" placeholder="背番号" inputmode="numeric"></div>
 <div class="row" style="margin-top:8px"><select id="ppos">${opt([['','メインポジション'],...DIRS,'DP','DH'])}</select><input id="psub" placeholder="サブポジ(例: 二・三)"><button class="b" data-a="addp" style="flex:0 0 auto">追加</button></div></div>
@@ -357,10 +365,10 @@ function statsBat(){
 function statsV(){return statsBat()+pitV()}
 function draw(){
  $('#ttl').textContent=S.team?(tname()||S.team):'やきう・ソフトボール成績表';document.title=$('#ttl').textContent;
- if(S.team&&S.appName!==$('#ttl').textContent){S.appName=$('#ttl').textContent;setAppName(S.appName)}$('#nv').hidden=!S.team;$('#gear').hidden=!S.team;
+ if(S.team&&S.appName!==$('#ttl').textContent){S.appName=$('#ttl').textContent;setAppName(S.appName)}$('#nv').hidden=!S.team;
  if(!S.ready){$('#m').innerHTML='<div class="empty">読み込み中…</div>';return}
  document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.id===S.tab));
- if(!S.team){$('#m').innerHTML=loginV();return}
+ if(!S.team){$('#m').innerHTML=loginV()+guideBox();return}
  const ae=document.activeElement;if(ae&&ae.tagName==='INPUT'&&ae.dataset.sc===undefined&&ae.value)return;
  $('#m').innerHTML=S.tab==='sched'?schedV():S.tab==='games'?(S.gid?gameV():gamesV()):S.tab==='settings'?settingsV():statsV();
  tg()}
@@ -405,7 +413,7 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-a]');if(!b
    .then(()=>{LS['mem:'+v+':'+S.uid]='1';S.me=me;return col(v,'meta').doc('team').set({id:'team',name:nm,sport:sp})})
    .then(()=>{S.msg='';S.lmode='join';join(v)})
    .catch(e=>{alert(e&&e.code==='permission-denied'?'作成できませんでした。そのチームIDはすでに使われています(管理者がチーム作成を制限している場合は、チーム作成コードが必要です)':'接続できません。インターネットの接続を確認してください');draw()})}
- else if(a==='chteam'){unsubs.forEach(u=>u());S.team='';S.me=null;LS.team='';S.tab='sched';S.gid=null;draw()}
+ else if(a==='chteam'){if(!confirm('別のチームに切り替えますか?\n(切り替えると、ログイン画面に戻ります。もう一度このチームに入るには、合言葉が必要です)'))return;unsubs.forEach(u=>u());S.team='';S.me=null;LS.team='';S.tab='sched';S.gid=null;draw()}
  else if(a==='savet'){put('meta',{id:'team',name:$('#tnm').value.trim(),sport:$('#tsp').value})}
  else if(a==='tab'){S.tab=id;S.gid=null;draw()}
  else if(a==='newgame'){const d=$('#gd').value||today(),o={id:uid(),date:d,opp:$('#go').value.trim(),type:$('#gt').value,tourn:$('#gn').value.trim(),season:d.slice(0,4),slots:[],sc:{us:Array(9).fill(null),them:Array(9).fill(null)},auto:Array(9).fill(false),autoT:Array(9).fill(false),dec:{}};put('games',o);S.gid=o.id;S.sub='in';draw()}
@@ -519,6 +527,7 @@ document.addEventListener('change',e=>{const t=e.target,g=S.games.find(x=>x.id==
  else if(t.id==='inn'){updRbi();updSc()}
  else if(t.id==='rbi'||t.id==='b')updSc()
  else if(t.id==='ri')updRun()});
+document.addEventListener('toggle',e=>{if(e.target&&e.target.id==='gd')S.guideOpen=e.target.open},true);
 boot();
 
 function boot(){
