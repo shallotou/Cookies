@@ -106,7 +106,7 @@ const outN=r=>r==='併殺'?2:isOut(r)?1:0;
 const RK=[['得点','得点'],['盗塁','盗塁'],['盗塁死','盗塁死(アウト)'],['走塁死','走塁死(アウト)'],['暴投','進塁(暴投)'],['捕逸','進塁(捕逸)']],RS={併殺走者:'併',得点:'得',盗塁:'盗',盗塁死:'盗死',走塁死:'走死',暴投:'暴',捕逸:'捕'},RLAB={併殺走者:'併殺(走者アウト)',得点:'得点',盗塁:'盗塁',盗塁死:'盗塁死',走塁死:'走塁死',暴投:'進塁(暴投)',捕逸:'進塁(捕逸)'};
 const short=t=>[...String(t||'')].slice(0,3).join('');
 const POS=[['','守備'],...DIRS,'DP','DH',['代','代打'],'控'];
-const S={team:LS.team||'',uid:'',me:null,ready:!cloud,msg:'',lmode:'join',guideOpen:false,bk:'news',dpSel:'',meta:[],players:[],games:[],pas:[],runs:[],pitch:[],pedit:false,pre:null,pe:null,scSel:[],events:[],att:[],evForm:null,evOpen:null,showPast:false,appName:'',tab:'sched',gid:null,sub:'in',inn:1,edit:null,f:{season:'',tourn:'',type:''}};
+const S={team:LS.team||'',uid:'',me:null,ready:!cloud,msg:'',lmode:'join',guideOpen:false,bk:'news',dpSel:'',got:{},linkFail:'',meta:[],players:[],games:[],pas:[],runs:[],pitch:[],pedit:false,pre:null,pe:null,scSel:[],events:[],att:[],evForm:null,evOpen:null,showPast:false,appName:'',tab:'sched',gid:null,sub:'in',inn:1,edit:null,f:{season:'',tourn:'',type:''}};
 let unsubs=[];
 const uid=()=>Math.random().toString(36).slice(2,9)+Date.now().toString(36).slice(-4);
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -116,13 +116,18 @@ const tname=()=>(S.meta.find(m=>m.id==='team')||{}).name||'';
 const teamM=()=>S.meta.find(m=>m.id==='team')||{};
 const sportV=()=>teamM().sport||'soft';
 const eraN=()=>+teamM().inn||(teamM().sport==='base'?9:7);
+const rolesOn=()=>!!teamM().roles;
+const myPlayer=()=>S.players.find(p=>S.me&&p.id===S.me.playerId);
+const isAdmin=()=>{if(!cloud)return true;if(!(S.got.meta&&S.got.players))return false;return !rolesOn()||!!(S.me&&S.me.owner)||!!(myPlayer()&&myPlayer().level==='admin')};
+const ADMIN_ACTS=new Set(['newgame','addp','delp','editp','savet','addl','rml','up','dosub','setfp','clrfp','relfp','addpa','delpa','editpa','canpa','addrun','delrun','addpit','editpit','delpit','canpit','editg','delg','evnew','evedit','evcancel','evsave','evdel','evcopy','pedit','addfor']);
 const pn=id=>(S.players.find(p=>p.id===id)||{name:'(削除済)'}).name;
 const fmt=x=>x.toFixed(3).replace(/^0/,'');
 const today=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
-function join(t){unsubs.forEach(u=>u());S.team=t;LS.team=t;S.meta=[];S.players=[];S.games=[];S.pas=[];S.runs=[];S.pitch=[];S.events=[];S.att=[];
- unsubs=['meta','players','games','pas','runs','pitch','events','att'].map(c=>sub(t,c,a=>{S[c]=a;if(c==='players')linkMe();draw()}));draw()}
+function join(t){unsubs.forEach(u=>u());S.team=t;LS.team=t;S.meta=[];S.players=[];S.games=[];S.pas=[];S.runs=[];S.pitch=[];S.events=[];S.att=[];S.got={};
+ unsubs=['meta','players','games','pas','runs','pitch','events','att'].map(c=>sub(t,c,a=>{S[c]=a;S.got[c]=true;if(c==='players')linkMe();draw()}));draw()}
 function linkMe(){if(!cloud||!S.me||!S.me.no||S.me.playerId||!S.uid)return;const p=S.players.find(x=>String(x.no)===String(S.me.no));if(!p)return;
- S.me={...S.me,playerId:p.id};col(S.team,'members').doc(S.uid).set(S.me).catch(()=>{})}
+ const key=p.id+':'+(S.me.adminCode||'');if(S.linkFail===key)return;
+ const nm={...S.me,playerId:p.id};col(S.team,'members').doc(S.uid).set(nm).then(()=>{S.me=nm;S.linkFail='';draw()}).catch(()=>{S.linkFail=key;draw()})}
 
 /* ---- スコア(未入力=null)と自動加算 ---- */
 const ent=v=>v!=null&&v!=='';
@@ -180,7 +185,7 @@ function loginV(){const nw=S.lmode==='new'&&cloud;
 <p class="note">${nw?'新しいチームを作ります。チームIDと合言葉は、メンバーに伝えるものです。「チーム作成コード」は、管理者から指示があった場合だけ入力します(通常は空欄)。':'チームID・合言葉・背番号を入力します。この端末では最初の1回だけです(初回はインターネットに接続してください)。'}${cloud?'':'<br><b>※現在は共有設定前のため、この端末内だけに保存されます。</b>'}</p>
 ${nw?'<div class="row"><input id="tnm2" placeholder="チーム名"></div><div class="row" style="margin-top:8px"><select id="tsp2"><option value="soft">ソフトボール</option><option value="base">野球</option></select><select id="tinn2"><option value="7">7回制</option><option value="9">9回制</option><option value="6">6回制</option><option value="5">5回制</option></select></div>':''}
 <div class="row" style="margin-top:${nw?8:0}px"><input id="tin" placeholder="${nw?'チームID(英小文字・数字・ハイフン 3〜30字)':'チームID'}" autocapitalize="off" value="${nw?'':esc(LS.team||'')}"></div>
-${cloud?`<div class="row" style="margin-top:8px"><input id="tcode" type="password" placeholder="${nw?'合言葉(6文字以上・新しく決める)':'合言葉'}" autocapitalize="off"></div>${nw?'<div class="row" style="margin-top:8px"><input id="tcc" type="password" placeholder="チーム作成コード(通常は空欄)" autocapitalize="off"></div>':''}<div class="row" style="margin-top:8px"><input id="tno" placeholder="${nw?'あなたの背番号(ない場合は空欄)':'背番号(ない場合は空欄)'}" inputmode="numeric"></div>`:''}
+${cloud?`<div class="row" style="margin-top:8px"><input id="tcode" type="password" placeholder="${nw?'合言葉(6文字以上・新しく決める)':'合言葉'}" autocapitalize="off"></div>${nw?'<div class="row" style="margin-top:8px"><input id="tcc" type="password" placeholder="チーム作成コード(通常は空欄)" autocapitalize="off"></div>':''}${nw?'<div class="row" style="margin-top:8px"><input id="tadm2" type="password" placeholder="管理者用の合言葉(6文字以上・新しく決める)" autocapitalize="off"></div>':''}<div class="row" style="margin-top:8px"><input id="tno" placeholder="${nw?'あなたの背番号(ない場合は空欄)':'背番号(ない場合は空欄)'}" inputmode="numeric"></div>${nw?'':'<div class="row" style="margin-top:8px"><input id="tadm" type="password" placeholder="管理者用の合言葉(管理者の方のみ)" autocapitalize="off"></div>'}`:''}
 <button class="b" style="margin-top:8px;width:100%" data-a="${nw?'mkteam':'join'}">${nw?'チームを作成して参加':'参加する'}</button>
 ${cloud?`<button class="g" style="margin-top:8px;width:100%" data-a="lmode" data-id="${nw?'join':'new'}">${nw?'← 既存のチームに参加する':'チームを新規追加する'}</button>`:''}</div>`}
 
@@ -202,31 +207,31 @@ function evFormV(){const E=S.events.find(x=>x.id===S.evForm)||null,v=k=>esc(E?E[
 <div class="row" style="margin-top:8px"><input id="epl" placeholder="場所" value="${v('place')}"><input id="eto" placeholder="大会名(任意)" value="${v('tourn')}"></div>
 <div class="row" style="margin-top:8px"><input id="eno" placeholder="メモ(集合場所・持ち物など)" value="${v('note')}"></div>
 <div class="row" style="margin-top:8px"><button class="b" data-a="evsave">保存</button><button class="g" data-a="evcancel">キャンセル</button></div></div>`}
-function evCard(e){const am={};S.att.filter(a=>a.eid===e.id).forEach(a=>{am[a.pid]=a});const pl=[...S.players].sort((a,b)=>(+a.no||999)-(+b.no||999)),my=myPid();
+function evCard(e){const adm=isAdmin(),am={};S.att.filter(a=>a.eid===e.id).forEach(a=>{am[a.pid]=a});const pl=[...S.players].sort((a,b)=>(+a.no||999)-(+b.no||999)),my=myPid();
  const cnt={'○':0,'△':0,'×':0};pl.forEach(p=>{const a=am[p.id];if(a&&cnt[a.v]!=null)cnt[a.v]++});const un=pl.length-cnt['○']-cnt['△']-cnt['×'];
  const open=S.evOpen===e.id,mine=my&&am[my]?am[my].v:'',isG=e.type==='公式戦'||e.type==='練習試合';
  let h=`<div class="card"><div class="row" style="flex-wrap:nowrap"><b style="flex:1;min-width:0">${esc(dfmt(e.date))}${e.time?' '+esc(e.time):''}</b><span class="chip${e.type==='公式戦'?' h':''}" style="flex:0 0 auto;min-width:0">${esc(e.type||'')}</span></div>
 <div style="margin:4px 0"><b>${esc(e.title||'(内容未設定)')}</b>${e.tourn?` <small class="mute">${esc(e.tourn)}</small>`:''}</div>${e.place?`<div class="note">場所: ${esc(e.place)}</div>`:''}${e.note?`<div class="note">${esc(e.note)}</div>`:''}`;
- h+=my?`<div class="ar"><span style="flex:0 0 auto">自分</span>${AV.map(([s,c,l])=>`<button class="ab ${c}${mine===s?' on':''}" data-a="att" data-id="${e.id}:${my}:${s}">${s} ${l}</button>`).join('')}</div>`:`<div class="note" style="margin-top:8px">背番号が選手マスタにないため、自分の出欠は「みんなの出欠」から入力してください。</div>`;
+ h+=my?`<div class="ar"><span style="flex:0 0 auto">自分</span>${AV.map(([s,c,l])=>`<button class="ab ${c}${mine===s?' on':''}" data-a="att" data-id="${e.id}:${my}:${s}">${s} ${l}</button>`).join('')}</div>`:`<div class="note" style="margin-top:8px">${adm?'背番号が選手マスタにないため、自分の出欠は「みんなの出欠」から入力してください。':'背番号が選手マスタにないため、出欠を入力できません。管理者に、選手マスタへの登録を依頼してください。'}</div>`;
  const unNames=pl.filter(p=>!am[p.id]).map(p=>p.name);
  h+=`<div class="note" style="margin-top:6px">○ ${cnt['○']}　△ ${cnt['△']}　× ${cnt['×']}　未回答 ${un}</div>${un?`<div class="note" style="margin-top:2px;color:#a33">未回答: ${esc(unNames.join('、'))}</div>`:''}
-<div class="row" style="margin-top:6px"><button class="g" data-a="evopen" data-id="${e.id}">${open?'一覧を閉じる':'みんなの出欠'}</button>${un?`<button class="g" data-a="evcopy" data-id="${e.id}">未回答者の連絡文をコピー</button>`:''}<button class="g" data-a="evedit" data-id="${e.id}">✎ 修正</button>${isG?`<button class="g" data-a="evgame" data-id="${e.id}">${e.gid&&S.games.some(g=>g.id===e.gid)?'試合記録を開く':'試合を作成'}</button>`:''}<button class="x" data-a="evdel" data-id="${e.id}" style="flex:0 0 auto;min-width:0">✕</button></div>`;
- if(open)h+=`<div style="margin-top:8px">`+(pl.length?pl.map(p=>{const a=am[p.id];return`<div class="pa"><span>${esc(p.no?p.no+' ':'')}${esc(p.name)}${p.id===my?' <small class="mute">(自分)</small>':''}${a&&a.by&&a.by!==p.id?` <small class="mute">(${esc(pn(a.by))}が入力)</small>`:''}</span><span class="ar" style="margin:0">${AV.map(([s,c])=>`<button class="ab sm ${c}${a&&a.v===s?' on':''}" data-a="att" data-id="${e.id}:${p.id}:${s}">${s}</button>`).join('')}</span></div>`}).join(''):'<div class="mute">選手マスタに選手が登録されていません。</div>')+`<p class="note" style="margin:6px 0 0">他の人の出欠も入力できます(「○○が入力」と記録されます)。同じボタンをもう一度押すと取り消せます。</p></div>`;
+<div class="row" style="margin-top:6px"><button class="g" data-a="evopen" data-id="${e.id}">${open?'一覧を閉じる':'みんなの出欠'}</button>${adm&&un?`<button class="g" data-a="evcopy" data-id="${e.id}">未回答者の連絡文をコピー</button>`:''}${adm?`<button class="g" data-a="evedit" data-id="${e.id}">✎ 修正</button>`:''}${isG&&(adm||(e.gid&&S.games.some(g=>g.id===e.gid)))?`<button class="g" data-a="evgame" data-id="${e.id}">${e.gid&&S.games.some(g=>g.id===e.gid)?'試合記録を開く':'試合を作成'}</button>`:''}${adm?`<button class="x" data-a="evdel" data-id="${e.id}" style="flex:0 0 auto;min-width:0">✕</button>`:''}</div>`;
+ if(open)h+=`<div style="margin-top:8px">`+(pl.length?pl.map(p=>{const a=am[p.id];return`<div class="pa"><span>${esc(p.no?p.no+' ':'')}${esc(p.name)}${p.id===my?' <small class="mute">(自分)</small>':''}${a&&a.by&&a.by!==p.id?` <small class="mute">(${esc(pn(a.by))}が入力)</small>`:''}</span>${(adm||p.id===my)?`<span class="ar" style="margin:0">${AV.map(([s,c])=>`<button class="ab sm ${c}${a&&a.v===s?' on':''}" data-a="att" data-id="${e.id}:${p.id}:${s}">${s}</button>`).join('')}</span>`:`<span class="mute">${a?esc(a.v):'未回答'}</span>`}</div>`}).join(''):'<div class="mute">選手マスタに選手が登録されていません。</div>')+`<p class="note" style="margin:6px 0 0">${adm?'他の人の出欠も入力できます(「○○が入力」と記録されます)。':'自分の出欠だけ入力できます。'}同じボタンをもう一度押すと取り消せます。</p></div>`;
  return h+`</div>`}
 function schedV(){const td=today(),up=S.events.filter(e=>(e.date||'')>=td).sort(evCmp),past=S.events.filter(e=>(e.date||'')<td).sort((a,b)=>evCmp(b,a));
- let h=`<div class="row" style="margin-bottom:8px"><button class="b" data-a="evnew" style="flex:0 0 auto">＋ 予定を追加</button></div>`;
- if(S.evForm)h+=evFormV();
+ let h=isAdmin()?`<div class="row" style="margin-bottom:8px"><button class="b" data-a="evnew" style="flex:0 0 auto">＋ 予定を追加</button></div>`:'';
+ if(S.evForm&&isAdmin())h+=evFormV();
  h+=up.length?up.map(evCard).join(''):'<div class="empty">今後の予定はありません。「予定を追加」から登録してください。</div>';
  if(past.length)h+=`<button class="g" data-a="evpast" style="width:100%;margin-top:6px">${S.showPast?'過去の予定を隠す':'過去の予定を見る('+past.length+'件)'}</button>`+(S.showPast?`<div style="margin-top:8px">${past.slice(0,20).map(evCard).join('')}</div>`:'');
  return h+`<div class="row" style="margin-top:14px"><button class="g" data-a="chteam">チームを切り替える</button></div><div style="margin-top:8px">`+guideBox()+`</div>`}
 
 function gamesV(){
  const gs=[...S.games].sort((a,b)=>(b.date||'').localeCompare(a.date||''));
- return`<h2 style="margin-top:0">試合を作成</h2><div class="card">
+ const adm=isAdmin();
+ return(adm?`<h2 style="margin-top:0">試合を作成</h2><div class="card">
 <div class="row"><input type="date" id="gd" value="${today()}"><input id="go" placeholder="対戦相手"></div>
 <div class="row" style="margin-top:8px"><select id="gt">${opt([['official','公式戦'],['practice','練習試合']])}</select><input id="gn" placeholder="大会名(任意)"></div>
-<button class="b" style="margin-top:8px;width:100%" data-a="newgame">試合を作成</button></div>
-<h2>試合一覧</h2>`+(gs.length?gs.map(g=>`<div class="card gm" data-a="open" data-id="${g.id}"><div><b>${esc(g.date)} vs ${esc(g.opp||'相手')}</b><br><small>${g.type==='official'?'公式戦':'練習試合'}${g.tourn?' / '+esc(g.tourn):''}</small></div><div class="sc">${sum(g.sc&&g.sc.us)}-${sum(g.sc&&g.sc.them)}</div></div>`).join(''):'<div class="empty">試合がまだありません。上のフォームから作成してください。</div>')}
+<button class="b" style="margin-top:8px;width:100%" data-a="newgame">試合を作成</button></div>`:'')+`<h2${adm?'':' style="margin-top:0"'}>試合一覧</h2>`+(gs.length?gs.map(g=>`<div class="card gm" data-a="open" data-id="${g.id}"><div><b>${esc(g.date)} vs ${esc(g.opp||'相手')}</b><br><small>${g.type==='official'?'公式戦':'練習試合'}${g.tourn?' / '+esc(g.tourn):''}</small></div><div class="sc">${sum(g.sc&&g.sc.us)}-${sum(g.sc&&g.sc.them)}</div></div>`).join(''):`<div class="empty">試合がまだありません。${adm?'上のフォームから作成してください。':''}</div>`)}
 
 const DN={投:1,捕:2,一:3,二:4,三:5,遊:6,左:7,中:8,右:9},BASE={単:1,失:1,野選:1,四:1,死:1,振逃:1,二:2,三:3,本:4};
 function notn(p){const n=DN[p.d]||'',r=p.r,k=p.k;
@@ -271,13 +276,22 @@ function guideBox(){return`<details class="card" id="gd"${S.guideOpen?' open':''
 <b>Android(Chrome)</b><ol style="margin:4px 0 8px;padding-left:20px"><li>右上の「︙」を押します。</li><li>「ホーム画面に追加」(または「アプリをインストール」)を選びます。</li></ol>
 <b>パソコン</b><div style="margin:4px 0 8px">Ctrl + D(Macは ⌘ + D)で、ブックマークに追加できます。</div>
 <b>ポイント</b><ul style="margin:4px 0 0;padding-left:20px"><li>ログインしてから追加すると、ホーム画面の名前が、チーム名になります。</li><li>ホーム画面のアイコンから最初に開いたときは、もう一度、チームID・合言葉・背番号の入力が必要です(1回だけ)。</li></ul></div></details>`}
+function roleCard(){if(!cloud)return'';const adm=isAdmin();
+ let b=`<b>この端末の権限: ${adm?(S.me&&S.me.owner?'オーナー(管理者)':'管理者'):'一般(閲覧・出欠のみ)'}</b>`;
+ if(!rolesOn())b+=`<p class="note" style="margin:6px 0">管理者機能は、まだ有効になっていません。いまは、チームの全員が編集できます。有効にすると、オーナーと、選手マスタで「管理者」にした人だけが編集でき、他の人は、閲覧と自分の出欠の入力だけになります。</p><button class="b" style="width:100%" data-a="claimowner">管理者機能を有効にする(この端末がオーナーになります)</button>`;
+ else if(S.me&&S.me.owner)b+=`<p class="note" style="margin:6px 0">選手マスタの「操作レベル」を「管理者」にした人は、管理者用の合言葉で認証すると、編集できます。</p><button class="g" style="width:100%" data-a="chgadm">管理者用の合言葉を変更する</button>`;
+ else if(!adm)b+=`<p class="note" style="margin:6px 0">管理者の方は、管理者用の合言葉を入力してください(選手マスタで、あなたの操作レベルが「管理者」になっている必要があります)。${S.linkFail?'<br><b style="color:#a33">背番号の紐づけが、まだできていません。</b>':''}</p><div class="row"><input id="cadm" type="password" placeholder="管理者用の合言葉" autocapitalize="off"><button class="b" data-a="claimadmin" style="flex:0 0 auto">認証</button></div>`;
+ return`<div class="card" style="margin-top:8px">${b}</div>`}
 function settingsV(){return`<h2 style="margin-top:0">選手・チーム設定</h2>
 <div class="card"><div class="row" style="flex-wrap:nowrap"><div style="flex:1;min-width:0"><b>${esc(tname()||S.team)}</b><div class="note">チームID: ${esc(S.team)}(メンバーに共有するのは、このIDと合言葉です)</div></div><button class="g" data-a="chteam" style="flex:0 0 auto;min-width:0">チームを切り替える</button></div>${cloud&&S.me?`<p class="note" style="margin:8px 0 0">この端末の本人: ${S.me.playerId?esc(pn(S.me.playerId))+'(背番号 '+esc(S.me.no)+')':'未紐づけ(背番号 '+esc(S.me.no||'なし')+' が選手マスタにありません)'}</p>`:''}</div>
-<h2>チームマスタ</h2><div class="card"><div class="row"><input id="tnm" placeholder="チーム名" value="${esc(tname())}"></div><div class="row" style="margin-top:8px"><select id="tsp">${opt([['soft','ソフトボール'],['base','野球']],sportV())}</select><select id="tinn">${opt([[5,'5回制'],[6,'6回制'],[7,'7回制'],[9,'9回制']],eraN())}</select></div><div class="row" style="margin-top:8px"><button class="b" data-a="savet">保存</button></div><p class="note" style="margin:8px 0 0">試合のイニング数は、投手の防御率の換算(自責点×イニング数÷投球回)と、スコアブックの回数の表示に使います。草野球・少年野球は7回制を選んでください。</p></div>`+playersV()+`<div style="margin-top:14px">`+guideBox()+`</div>`}
-function playersV(){
+${roleCard()}${isAdmin()?`<h2>チームマスタ</h2><div class="card"><div class="row"><input id="tnm" placeholder="チーム名" value="${esc(tname())}"></div><div class="row" style="margin-top:8px"><select id="tsp">${opt([['soft','ソフトボール'],['base','野球']],sportV())}</select><select id="tinn">${opt([[5,'5回制'],[6,'6回制'],[7,'7回制'],[9,'9回制']],eraN())}</select></div><div class="row" style="margin-top:8px"><button class="b" data-a="savet">保存</button></div><p class="note" style="margin:8px 0 0">試合のイニング数は、投手の防御率の換算(自責点×イニング数÷投球回)と、スコアブックの回数の表示に使います。草野球・少年野球は7回制を選んでください。</p></div>`:''}`+playersV()+`<div style="margin-top:14px">`+guideBox()+`</div>`}
+function playersV(){const adm=isAdmin(),lv=p=>p.level==='admin'?'管理者':'一般';
+ const list=S.players.length?`<div class="card">${[...S.players].sort((a,b)=>(+a.no||999)-(+b.no||999)).map(p=>`<div class="pa"><span>${esc(p.no)} ${esc(p.name)} <small class="mute">${p.pos?esc(p.pos):''}${subsOf(p).length?' / '+esc(subsOf(p).join('・')):''}${rolesOn()&&p.level==='admin'?' / 管理者':''}</small></span>${adm?`<span><select data-plv="${p.id}" style="width:auto;padding:4px"${rolesOn()?'':' title="管理者機能を有効にすると使われます"'}>${opt([['user','一般'],['admin','管理者']],p.level==='admin'?'admin':'user')}</select> <button class="g" data-a="editp" data-id="${p.id}">✎</button><button class="x" data-a="delp" data-id="${p.id}">✕</button></span>`:''}</div>`).join('')}</div>`:'<div class="empty">選手が登録されていません。</div>';
+ if(!adm)return`<h2>選手一覧</h2>`+list;
  return`<h2>選手マスタ</h2><div class="card"><div class="row"><input id="pnm" placeholder="名前"><input id="pno" placeholder="背番号" inputmode="numeric"></div>
-<div class="row" style="margin-top:8px"><select id="ppos">${opt([['','メインポジション'],...DIRS,'DP','DH'])}</select><input id="psub" placeholder="サブポジ(例: 二・三)"><button class="b" data-a="addp" style="flex:0 0 auto">追加</button></div></div>
-<h2>登録済みの選手</h2>`+(S.players.length?`<div class="card">${[...S.players].sort((a,b)=>(+a.no||999)-(+b.no||999)).map(p=>`<div class="pa"><span>${esc(p.no)} ${esc(p.name)} <small class="mute">${p.pos?esc(p.pos):''}${subsOf(p).length?' / '+esc(subsOf(p).join('・')):''}</small></span><span><button class="g" data-a="editp" data-id="${p.id}">✎</button><button class="x" data-a="delp" data-id="${p.id}">✕</button></span></div>`).join('')}</div>`:'<div class="empty">選手を追加すると、打順に選べるようになります。</div>')}
+<div class="row" style="margin-top:8px"><select id="ppos">${opt([['','メインポジション'],...DIRS,'DP','DH'])}</select><input id="psub" placeholder="サブポジ(例: 二・三)"></div>
+<div class="row" style="margin-top:8px"><select id="plvl">${opt([['user','操作レベル: 一般(閲覧・出欠のみ)'],['admin','操作レベル: 管理者(全機能)']],'user')}</select><button class="b" data-a="addp" style="flex:0 0 auto">追加</button></div>${cloud&&!rolesOn()?'<p class="note" style="margin:6px 0 0">※「操作レベル」は、管理者機能を有効にしたあとから使われます(設定の上のほうの案内を見てください)。</p>':''}</div>
+<h2>登録済みの選手</h2>`+list}
 
 const logTxt=l=>`${l.inn}回 ${l.n}番 ${l.k} ${pn(l.from)}→${pn(l.to)}${l.pos?'('+l.pos+')':''}`;
 
@@ -287,8 +301,9 @@ function gameV(){
  const us=nrm(g.sc&&g.sc.us),th=nrm(g.sc&&g.sc.them),au=au9(g);
  const R=S.runs.filter(r=>r.gid===g.id).sort((a,b)=>a.t-b.t),rn0=k=>R.filter(r=>r.k===k).length,rn=(pid,k)=>R.filter(r=>r.pid===pid&&r.k===k).length;
  const logs=L.flatMap((s,i)=>(s.log||[]).map(l=>({...l,n:i+1}))).sort((a,b)=>a.inn-b.inn);
- let h=`<div class="row" style="margin-bottom:6px"><button class="g" data-a="back" style="flex:0 0 auto">← 一覧</button><b style="flex:1">${esc(g.date)} vs ${esc(g.opp||'相手')}</b><button class="g" data-a="editg" style="flex:0 0 auto">✎ 試合情報</button></div>
-<div class="tabs">${[['in','入力'],['paper','成績'],['book','スコアブック'],['pit','投手']].map(([k,l])=>`<button data-a="sub" data-id="${k}" class="${S.sub===k?'on':''}">${l}</button>`).join('')}</div>`;
+ const adm=isAdmin();if(!adm){if(S.sub==='in')S.sub='paper';S.pedit=false}
+ let h=`<div class="row" style="margin-bottom:6px"><button class="g" data-a="back" style="flex:0 0 auto">← 一覧</button><b style="flex:1">${esc(g.date)} vs ${esc(g.opp||'相手')}</b>${adm?`<button class="g" data-a="editg" style="flex:0 0 auto">✎ 試合情報</button>`:''}</div>
+<div class="tabs">${[['in','入力'],['paper','成績'],['book','スコアブック'],['pit','投手']].filter(([k])=>adm||k!=='in').map(([k,l])=>`<button data-a="sub" data-id="${k}" class="${S.sub===k?'on':''}">${l}</button>`).join('')}</div>`;
  if(S.sub==='in'){
   const I9=[1,2,3,4,5,6,7,8,9];
   h+=`<div class="sw card"><table class="sc"><tr><th></th>${I9.map(i=>`<th>${i}</th>`).join('')}<th>計</th></tr>
@@ -346,7 +361,7 @@ function gameV(){
 <button class="g" style="width:100%;margin-top:8px;color:#a33" data-a="delg">この試合を削除</button>`;
  }
  if(S.sub==='paper'){
-  h+=`<div class="card"><div style="font-size:20px;font-weight:900">${esc(tname()||'自チーム')} ${sum(us)} - ${sum(th)} ${esc(g.opp||'相手')}</div><div class="mute">${g.type==='official'?'公式戦':'練習試合'}${g.tourn?' / '+esc(g.tourn):''}</div><button class="${S.pedit?'b':'g'}" style="margin-top:8px" data-a="pedit">${S.pedit?'編集を終了':'✎ 成績を編集'}</button>${S.pedit?'<div class="note" style="margin-top:6px">打席の記録をタップすると修正・削除できます。「＋」は打席の追加です。</div>':''}</div>
+  h+=`<div class="card"><div style="font-size:20px;font-weight:900">${esc(tname()||'自チーム')} ${sum(us)} - ${sum(th)} ${esc(g.opp||'相手')}</div><div class="mute">${g.type==='official'?'公式戦':'練習試合'}${g.tourn?' / '+esc(g.tourn):''}</div>${adm?`<button class="${S.pedit?'b':'g'}" style="margin-top:8px" data-a="pedit">${S.pedit?'編集を終了':'✎ 成績を編集'}</button>`:''}${S.pedit?'<div class="note" style="margin-top:6px">打席の記録をタップすると修正・削除できます。「＋」は打席の追加です。</div>':''}</div>
 <div class="sw"><table><tr><th class="l">打順</th><th>守</th><th class="l">選手</th><th>打</th><th>安</th><th>点</th><th>得</th><th>盗</th><th class="l">打席</th></tr>`;
   L.forEach((s,i)=>{slotPids(s).forEach((pid,j)=>{const ps=P.filter(p=>p.pid===pid&&slOf(p)===s.id),o=st(ps);
    h+=`<tr><td>${j?'↳':i+1}</td><td>${pid===s.pid?esc(s.pos==='代'?'代打':s.pos||''):''}</td><td class="l">${esc(pn(pid))}</td><td>${o.ab}</td><td>${o.h}</td><td>${o.rbi}</td><td>${rn(pid,'得点')}</td><td>${rn(pid,'盗塁')}</td><td class="l">${ps.map(p=>`<span class="chip${isHit(p.r)?' h':''}${S.pedit?' ed':''}"${S.pedit?` data-a="editpa" data-id="${p.id}"`:''}>${esc(lab(p))}</span>`).join('')}${S.pedit&&pid===s.pid?`<span class="chip add" data-a="addfor" data-id="${s.id}:${pid}">＋</span>`:''}</td></tr>`})});
@@ -362,7 +377,8 @@ function gameV(){
   const T=S.pitch.filter(p=>p.gid===g.id).sort((a,b)=>a.inn-b.inn||a.t-b.t),E=T.find(p=>p.id===S.pe)||null,pm=Math.max(maxInn(g),maxThem(g));
   const isP=p=>p.pos==='投'||subsOf(p).includes('投'),pls=[...S.players].sort((a,b)=>(isP(b)?1:0)-(isP(a)?1:0)||(+a.no||999)-(+b.no||999));
   const dflt=T.length?T[T.length-1].pid:(pls[0]||{}).id;
-  if(!S.players.length)h+='<div class="empty">先に設定で選手を登録してください。</div>';
+  if(!adm){}
+  else if(!S.players.length)h+='<div class="empty">先に設定で選手を登録してください。</div>';
   else if(!pm&&!E)h+='<div class="card mute">先に「入力」タブのスコア表へ得点を入力してください。入力した回までの投手成績を記録できます。</div>';
   else{const top=Math.max(pm,E?+E.inn:0),inns=Array.from({length:top},(_,i)=>[i+1,(i+1)+'回'+(pOuts(g,i+1)>=3?'(3アウト)':'')]);
    const v=k=>E?(+E[k]||0):0,f=(id,l,k)=>`<label class="nf">${l}<input type="number" min="0" inputmode="numeric" id="${id}" value="${v(k)}"></label>`;
@@ -373,7 +389,7 @@ function gameV(){
 <p class="note" style="margin:6px 0 0">相手打者は登録せず、回ごとの結果だけを記録します。アウトはその投手がその回に取った数です(1回の合計は3まで)。相手の得点が未入力の回は、失点を記録すると自動で加算されます。</p></div>`}
   const pids=[...new Set(T.map(x=>x.pid))];
   h+=`<h2>この試合の投手成績</h2>`+(pids.length?pids.map(pid=>{const a=T.filter(x=>x.pid===pid),o=pst(a),dec=(g.dec||{})[pid]||'';
-   return`<div class="card"><div class="row"><b style="flex:1">${esc(pn(pid))}</b><select data-dec="${pid}" style="width:auto;padding:6px">${opt([['','勝敗なし'],['勝','勝'],['敗','敗'],['S','セーブ']],dec)}</select></div><div class="note" style="margin:4px 0">${ipS(o.o)}回 / 被安${o.h} 被本${o.hr} 四球${o.bb} 死球${o.hbp} 三振${o.so} 失点${o.r} 自責${o.er}</div>`+a.map(x=>`<div class="pa"><span>${x.inn}回 ${x.o}アウト 被安${x.h} 四球${x.bb} 死球${x.hbp} 三振${x.so} 失点${x.r}(自責${x.er})${x.hr?' 被本'+x.hr:''}</span><span><button class="g" data-a="editpit" data-id="${x.id}">✎</button><button class="x" data-a="delpit" data-id="${x.id}">✕</button></span></div>`).join('')+`</div>`}).join(''):'<div class="empty">まだ入力がありません。</div>');
+   return`<div class="card"><div class="row"><b style="flex:1">${esc(pn(pid))}</b>${adm?`<select data-dec="${pid}" style="width:auto;padding:6px">${opt([['','勝敗なし'],['勝','勝'],['敗','敗'],['S','セーブ']],dec)}</select>`:(dec?`<b>${esc(dec)}</b>`:'')}</div><div class="note" style="margin:4px 0">${ipS(o.o)}回 / 被安${o.h} 被本${o.hr} 四球${o.bb} 死球${o.hbp} 三振${o.so} 失点${o.r} 自責${o.er}</div>`+a.map(x=>`<div class="pa"><span>${x.inn}回 ${x.o}アウト 被安${x.h} 四球${x.bb} 死球${x.hbp} 三振${x.so} 失点${x.r}(自責${x.er})${x.hr?' 被本'+x.hr:''}</span>${adm?`<span><button class="g" data-a="editpit" data-id="${x.id}">✎</button><button class="x" data-a="delpit" data-id="${x.id}">✕</button></span>`:''}</div>`).join('')+`</div>`}).join(''):'<div class="empty">まだ入力がありません。</div>');
  }
  if(S.sub==='book'){
   const mx=Math.max(eraN(),...P.map(p=>+p.inn||0),...R.map(r=>+r.inn||0));
@@ -441,36 +457,53 @@ function tg(){const r=$('#r');if(r){const no=NOBALL.includes(r.value);$('#d').di
  const sk=$('#sk');if(sk)$('#sq').disabled=sk.value==='代打';updRun()}
 
 document.addEventListener('click',e=>{const b=e.target.closest('[data-a]');if(!b)return;const a=b.dataset.a,id=b.dataset.id,g=S.games.find(x=>x.id===S.gid);
+ if(ADMIN_ACTS.has(a)&&!isAdmin()){alert('この操作は、管理者のみ行えます');return}
  if(a==='join'){const v=$('#tin').value.trim();if(!v)return;
   if(!cloud){join(v);return}
   const code=($('#tcode').value||'').trim(),no=($('#tno').value||'').trim();
   if(!code)return alert('合言葉を入力してください');
   if(!S.uid)return alert('ログインの準備中です。数秒たってからもう一度押してください');
-  const doc={code,no,playerId:'',joinedAt:Date.now()};
+  const ad=($('#tadm').value||'').trim(),doc={code,no,playerId:'',joinedAt:Date.now(),...(ad?{adminCode:ad}:{})};
   col(v,'members').doc(S.uid).set(doc).then(()=>{LS['mem:'+v+':'+S.uid]='1';S.me=doc;S.msg='';join(v)})
    .catch(e=>{alert(e&&e.code==='permission-denied'?'チームIDまたは合言葉が違います':'接続できません。インターネットの接続を確認してください');draw()})}
  else if(a==='reload'){location.reload()}
+ else if(a==='claimadmin'){const c=($('#cadm').value||'').trim();if(!c)return;
+  const p=S.players.find(x=>String(x.no)===String((S.me||{}).no));
+  if(!p)return alert('あなたの背番号の選手が、選手マスタにありません');
+  if(p.level!=='admin')return alert('あなたの選手の操作レベルが「管理者」になっていません。管理者に設定してもらってください');
+  const nm={...S.me,adminCode:c,playerId:p.id};col(S.team,'members').doc(S.uid).set(nm).then(()=>{S.me=nm;S.linkFail='';draw();alert('管理者として認証しました')}).catch(()=>alert('管理者用の合言葉が違います'))}
+ else if(a==='claimowner'){if(!confirm('管理者機能を有効にします。\n・この端末がオーナー(管理者)になります。\n・有効にすると、オーナーと、選手マスタの操作レベルが「管理者」の人だけが編集できます。\n・他のメンバーに知らせる前に、先に行ってください。\nよろしいですか?'))return;
+  const c=(prompt('管理者用の合言葉を決めてください(6文字以上)')||'').trim();if(c.length<6)return alert('6文字以上にしてください');
+  fdb.collection('teams').doc(S.team).update({ownerUid:S.uid,adminCode:c})
+   .then(()=>col(S.team,'meta').doc('team').set({...teamM(),id:'team',roles:true}))
+   .then(()=>{S.me={...S.me,owner:true,adminCode:c};return col(S.team,'members').doc(S.uid).set(S.me)})
+   .then(()=>{draw();alert('管理者機能を有効にしました。選手マスタで、管理者にする人の操作レベルを設定してください')})
+   .catch(()=>alert('有効にできませんでした。すでに他の人が有効にした可能性があります'))}
+ else if(a==='chgadm'){const c=(prompt('新しい管理者用の合言葉(6文字以上)')||'').trim();if(c.length<6)return alert('6文字以上にしてください');
+  fdb.collection('teams').doc(S.team).update({adminCode:c}).then(()=>{S.me={...S.me,adminCode:c};col(S.team,'members').doc(S.uid).set(S.me).catch(()=>{});alert('管理者用の合言葉を変更しました')}).catch(()=>alert('変更できませんでした(オーナーのみ変更できます)'))}
  else if(a==='bk'){S.bk=id;draw()}
  else if(a==='lmode'){S.lmode=id;S.msg='';draw()}
- else if(a==='mkteam'){const v=$('#tin').value.trim(),code=($('#tcode').value||'').trim(),cc=($('#tcc').value||'').trim(),nm=($('#tnm2').value||'').trim(),no=($('#tno').value||'').trim(),sp=$('#tsp2').value,ii=+$('#tinn2').value||7;
+ else if(a==='mkteam'){const v=$('#tin').value.trim(),code=($('#tcode').value||'').trim(),cc=($('#tcc').value||'').trim(),nm=($('#tnm2').value||'').trim(),no=($('#tno').value||'').trim(),sp=$('#tsp2').value,ii=+$('#tinn2').value||7,ad2=($('#tadm2').value||'').trim();
   if(!nm)return alert('チーム名を入力してください');
   if(!/^[a-z0-9][a-z0-9-]{2,29}$/.test(v))return alert('チームIDは、半角の英小文字・数字・ハイフンで、3〜30文字にしてください(先頭はハイフン不可)');
   if(code.length<6)return alert('合言葉は6文字以上にしてください');
+  if(ad2.length<6)return alert('管理者用の合言葉は6文字以上にしてください');
+  if(ad2===code)return alert('管理者用の合言葉は、合言葉と違うものにしてください');
   if(!S.uid)return alert('ログインの準備中です。数秒たってからもう一度押してください');
-  const me={code,no,playerId:'',joinedAt:Date.now()};
-  fdb.collection('teams').doc(v).set({joinCode:code,createCode:cc,createdAt:Date.now()})
+  const me={code,no,playerId:'',joinedAt:Date.now(),owner:true,adminCode:ad2};
+  fdb.collection('teams').doc(v).set({joinCode:code,createCode:cc,adminCode:ad2,ownerUid:S.uid,createdAt:Date.now()})
    .then(()=>col(v,'members').doc(S.uid).set(me))
-   .then(()=>{LS['mem:'+v+':'+S.uid]='1';S.me=me;return col(v,'meta').doc('team').set({id:'team',name:nm,sport:sp,inn:ii})})
+   .then(()=>{LS['mem:'+v+':'+S.uid]='1';S.me=me;return col(v,'meta').doc('team').set({id:'team',name:nm,sport:sp,inn:ii,roles:true})})
    .then(()=>{S.msg='';S.lmode='join';join(v)})
    .catch(e=>{alert(e&&e.code==='permission-denied'?'作成できませんでした。そのチームIDはすでに使われています(管理者がチーム作成を制限している場合は、チーム作成コードが必要です)':'接続できません。インターネットの接続を確認してください');draw()})}
  else if(a==='chteam'){if(!confirm('別のチームに切り替えますか?\n(切り替えると、ログイン画面に戻ります。もう一度このチームに入るには、合言葉が必要です)'))return;unsubs.forEach(u=>u());S.team='';S.me=null;LS.team='';S.tab='sched';S.gid=null;draw()}
- else if(a==='savet'){put('meta',{id:'team',name:$('#tnm').value.trim(),sport:$('#tsp').value,inn:+$('#tinn').value||7})}
+ else if(a==='savet'){put('meta',{...teamM(),id:'team',name:$('#tnm').value.trim(),sport:$('#tsp').value,inn:+$('#tinn').value||7})}
  else if(a==='tab'){S.tab=id;S.gid=null;draw()}
  else if(a==='newgame'){const d=$('#gd').value||today(),o={id:uid(),date:d,opp:$('#go').value.trim(),type:$('#gt').value,tourn:$('#gn').value.trim(),season:d.slice(0,4),slots:[],sc:{us:Array(9).fill(null),them:Array(9).fill(null)},auto:Array(9).fill(false),autoT:Array(9).fill(false),dec:{}};put('games',o);S.gid=o.id;S.sub='in';draw()}
- else if(a==='open'){S.gid=id;S.sub='in';draw()}
+ else if(a==='open'){S.gid=id;S.sub=isAdmin()?'in':'paper';draw()}
  else if(a==='back'){S.gid=null;draw()}
  else if(a==='sub'){S.sub=id;S.pre=null;draw()}
- else if(a==='addp'){const n=$('#pnm').value.trim();if(!n)return alert('名前を入力してください');put('players',{id:uid(),name:n,no:$('#pno').value.trim(),pos:$('#ppos').value,sub:$('#psub').value.trim()});$('#pnm').value='';$('#psub').value=''}
+ else if(a==='addp'){const n=$('#pnm').value.trim();if(!n)return alert('名前を入力してください');put('players',{id:uid(),name:n,no:$('#pno').value.trim(),pos:$('#ppos').value,sub:$('#psub').value.trim(),level:$('#plvl').value||'user'});$('#pnm').value='';$('#psub').value=''}
  else if(a==='delp'){if(confirm('この選手を削除しますか?過去の打席記録は残ります。'))del('players',id)}
  else if(a==='addl'){const v=$('#ladd').value,p=S.players.find(x=>x.id===v);if(!p)return;const L2=cp(slotsOf(g));L2.push({id:uid(),pid:v,pos:autoPos(p,L2),fp:'',fpPos:'',log:[]});saveSlots(g,L2)}
  else if(a==='rml'){const L2=cp(slotsOf(g)),s=L2[+id],pids=slotPids(s);if(S.pas.some(x=>x.gid===g.id&&pids.includes(x.pid))&&!confirm('この打順には打席記録があります(記録は残ります)。外しますか?'))return;L2.splice(+id,1);saveSlots(g,L2)}
@@ -520,9 +553,11 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-a]');if(!b
   put('events',e);S.evForm=null;draw()}
  else if(a==='evdel'){const e=S.events.find(x=>x.id===id);if(!e||!confirm('この予定と出欠の回答を削除しますか?'))return;S.att.filter(x=>x.eid===id).forEach(x=>del('att',x.id));del('events',id)}
  else if(a==='att'){const[eid,pid,v]=id.split(':'),aid=eid+'_'+pid,cur=S.att.find(x=>x.id===aid);
+  if(!isAdmin()&&pid!==myPid())return alert('出欠は、自分の分だけ入力できます');
   if(cur&&cur.v===v)del('att',aid);else put('att',{id:aid,eid,pid,v,by:myPid(),t:Date.now()})}
  else if(a==='evgame'){const e=S.events.find(x=>x.id===id);if(!e)return;
-  if(e.gid&&S.games.some(x=>x.id===e.gid)){S.tab='games';S.gid=e.gid;S.sub='in';draw();return}
+  if(e.gid&&S.games.some(x=>x.id===e.gid)){S.tab='games';S.gid=e.gid;S.sub=isAdmin()?'in':'paper';draw();return}
+  if(!isAdmin())return alert('この操作は、管理者のみ行えます');
   const d=e.date||today(),o={id:uid(),date:d,opp:e.title||'',type:e.type==='公式戦'?'official':'practice',tourn:e.tourn||'',season:d.slice(0,4),slots:[],sc:{us:Array(9).fill(null),them:Array(9).fill(null)},auto:Array(9).fill(false),autoT:Array(9).fill(false),dec:{},eid:e.id};
   put('games',o);put('events',{...e,gid:o.id});S.tab='games';S.gid=o.id;S.sub='in';draw()}
  else if(a==='pedit'){S.pedit=!S.pedit;draw()}
@@ -565,6 +600,7 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-a]');if(!b
  else if(a==='delg'){if(confirm('この試合と全ての打席記録を削除します。よろしいですか?')){S.pas.filter(p=>p.gid===g.id).forEach(p=>del('pas',p.id));S.runs.filter(r=>r.gid===g.id).forEach(r=>del('runs',r.id));S.pitch.filter(p=>p.gid===g.id).forEach(p=>del('pitch',p.id));del('games',g.id);S.gid=null;draw()}}
 });
 document.addEventListener('change',e=>{const t=e.target,g=S.games.find(x=>x.id===S.gid);
+ if(!isAdmin()&&(t.dataset.sc!==undefined||t.dataset.pos!==undefined||t.dataset.dec!==undefined||t.dataset.plv!==undefined)){draw();return}
  if(t.dataset.sc&&g){const side=t.dataset.sc,i=+t.dataset.i,sc={us:nrm(g.sc&&g.sc.us),them:nrm(g.sc&&g.sc.them)},au=au9(g),v=t.value===''?null:Math.max(0,Math.floor(+t.value||0));
   if(side==='us'&&v!=null){const u=Math.max(rbiIn(g,i+1),runsIn(g,i+1));if(v<u){alert((i+1)+'回に記録済みの打点・得点者('+u+')より小さい得点にはできません');draw();return}}
   if(side==='them'&&v!=null){const u=pRuns(g,i+1);if(v<u){alert((i+1)+'回に記録済みの失点('+u+')より小さい得点にはできません');draw();return}}
@@ -574,6 +610,7 @@ document.addEventListener('change',e=>{const t=e.target,g=S.games.find(x=>x.id==
  else if(t.dataset.pos!==undefined&&g){const L2=cp(slotsOf(g)),s=L2[+t.dataset.pos];
   if(s.fp&&t.value!=='DP'){alert('このDPにはFPが設定されています。先にFPを解除してください');draw();return}
   s.pos=t.value;saveSlots(g,L2)}
+ else if(t.dataset.plv){const p=S.players.find(x=>x.id===t.dataset.plv);if(p)put('players',{...p,level:t.value})}
  else if(t.dataset.f){S.f[t.dataset.f]=t.value;draw()}
  else if(t.dataset.scs!==undefined){S.scSel[+t.dataset.scs]=t.value}
  else if(t.dataset.dps!==undefined){S.dpSel=t.value}
@@ -585,7 +622,7 @@ document.addEventListener('toggle',e=>{if(e.target&&e.target.id==='gd')S.guideOp
 boot();
 if(typeof location!=='undefined'&&/^https?:/.test(location.protocol)){setTimeout(checkUpdate,4000);setInterval(checkUpdate,300000);document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')checkUpdate()})}
 
-const APP_VER='20261022061412';
+const APP_VER='20261023004111';
 async function checkUpdate(){try{if(typeof fetch==='undefined'||(typeof navigator!=='undefined'&&navigator.onLine===false))return;
  const r=await fetch('index.html?_='+Date.now(),{cache:'no-store'});if(!r.ok)return;const t=await r.text(),m=t.match(/const APP_VER='([^']+)'/);
  if(m&&m[1]!==APP_VER){const u=$('#upd');if(u)u.hidden=false}}catch(e){}}
